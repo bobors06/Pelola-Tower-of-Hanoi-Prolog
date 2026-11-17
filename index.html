@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tower of Hanoi</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; color: #eef2ff;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: radial-gradient(circle at top, #25345d 0%, #11182d 45%, #090e1c 100%);
+      display: flex; justify-content: center; padding: 32px 18px;
+    }
+    .app { width: min(100%, 1000px); }
+    header { text-align: center; margin-bottom: 25px; }
+    h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: .03em; }
+    header p { color: #aab7d6; margin: 0; }
+    .panel {
+      background: rgba(22, 32, 58, .88); border: 1px solid #344365;
+      border-radius: 18px; padding: 18px; box-shadow: 0 18px 50px #0005;
+    }
+    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; justify-content: center; }
+    .control { display: grid; gap: 6px; color: #b9c5df; font-size: .85rem; }
+    select, button {
+      border: 1px solid #46577f; border-radius: 10px; padding: 10px 14px;
+      background: #202e50; color: #f4f6ff; font: inherit;
+    }
+    select { min-width: 112px; }
+    button { cursor: pointer; font-weight: 650; transition: transform .15s, filter .15s, background .15s; }
+    button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.15); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .primary { background: linear-gradient(135deg, #7c5cff, #4b8cff); border: 0; }
+    .secondary { background: #26385f; }
+    .stats { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 18px 0 4px; }
+    .stat { background: #111b33; border: 1px solid #344365; padding: 9px 16px; border-radius: 12px; color: #aebcda; }
+    .stat strong { color: white; margin-left: 6px; font-size: 1.05rem; }
+    .board {
+      margin-top: 18px; padding: 28px 12px 18px; border-radius: 16px;
+      background: linear-gradient(180deg, #172443, #111a30);
+      border: 1px solid #2d3d61; display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 8px; min-height: 330px; overflow: hidden;
+    }
+    .tower { position: relative; height: 275px; display: flex; align-items: end; justify-content: center; }
+    .rod {
+      position: absolute; bottom: 12px; width: 12px; height: 220px;
+      border-radius: 10px 10px 2px 2px; background: linear-gradient(90deg, #8291b5, #d6def4, #7787aa);
+      box-shadow: 0 0 18px #9eb5ff33;
+    }
+    .base {
+      position: absolute; bottom: 0; width: 90%; max-width: 270px; height: 14px;
+      border-radius: 10px; background: linear-gradient(180deg, #a7b6d8, #53658c);
+    }
+    .disk-stack {
+      position: absolute; bottom: 14px; width: 100%; height: 210px;
+      display: flex; flex-direction: column-reverse; align-items: center; justify-content: flex-start;
+      pointer-events: none;
+    }
+    .disk {
+      height: 25px; border-radius: 8px; border: 2px solid #ffffff55;
+      box-shadow: inset 0 3px 5px #ffffff35, 0 4px 8px #0005;
+      flex: 0 0 25px; transition: width .22s ease, transform .22s ease;
+      position: relative; z-index: 1;
+    }
+    .tower-label { position: absolute; bottom: -25px; color: #9eafd2; font-weight: 700; letter-spacing: .12em; font-size: .78rem; }
+    .tower.active .rod { filter: brightness(1.35); box-shadow: 0 0 22px #8c78ff99; }
+    .tower.active .base { filter: brightness(1.25); }
+    .message { text-align: center; color: #aebcda; min-height: 24px; margin: 18px 0 0; }
+    .hint { text-align: center; color: #7183aa; font-size: .82rem; margin-top: 14px; }
+    @media (max-width: 560px) {
+      body { padding: 20px 10px; }
+      .panel { padding: 12px; }
+      .board { min-height: 285px; padding-top: 18px; }
+      .tower { height: 235px; }
+      .rod { height: 185px; }
+      .disk-stack { height: 175px; }
+      .disk { height: 21px; flex-basis: 21px; }
+      .toolbar { align-items: stretch; }
+      .control { flex: 1 1 42%; }
+      .control select { width: 100%; }
+      .toolbar button { flex: 1 1 42%; }
+    }
+    .flying-disk {
+  position: fixed !important;
+  z-index: 9999 !important;
+  margin: 0 !important;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform;
+  box-shadow: 0 12px 25px #0008, 0 0 18px #ffffff55;
+}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>🗼 Tower of Hanoi</h1>
+      <p>Move every disk from the first tower to the last tower.</p>
+    </header>
+    <section class="panel">
+      <div class="toolbar">
+        <label class="control">Number of disks
+          <select id="diskCount">
+            <option value="3">3 disks</option><option value="4">4 disks</option>
+            <option value="5" selected>5 disks</option><option value="6">6 disks</option>
+            <option value="7">7 disks</option><option value="8">8 disks</option>
+          </select>
+        </label>
+        <label class="control">Animation speed
+          <select id="speed">
+            <option value="900">Slow</option><option value="500" selected>Normal</option>
+            <option value="180">Fast</option>
+          </select>
+        </label>
+        <button class="primary" id="solveBtn">▶ Solve Automatically</button>
+        <button class="secondary" id="resetBtn">↻ Reset</button>
+      </div>
+      <div class="stats">
+        <div class="stat">Moves: <strong id="moves">0</strong></div>
+        <div class="stat">Minimum moves: <strong id="minimum">31</strong></div>
+        <div class="stat">Status: <strong id="status">Ready</strong></div>
+      </div>
+      <div class="board" id="board">
+        <div class="tower" data-tower="0"><div class="rod"></div><div class="base"></div><div class="disk-stack"></div><div class="tower-label">TOWER A</div></div>
+        <div class="tower" data-tower="1"><div class="rod"></div><div class="base"></div><div class="disk-stack"></div><div class="tower-label">TOWER B</div></div>
+        <div class="tower" data-tower="2"><div class="rod"></div><div class="base"></div><div class="disk-stack"></div><div class="tower-label">TOWER C</div></div>
+      </div>
+      <p class="message" id="message">Press “Solve Automatically” to watch the puzzle being solved.</p>
+      <p class="hint">The goal is to move the entire stack to Tower C without placing a larger disk on a smaller one.</p>
+    </section>
+  </main>
+  <script>
+    const diskCount = document.getElementById('diskCount');
+    const speed = document.getElementById('speed');
+    const solveBtn = document.getElementById('solveBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const movesEl = document.getElementById('moves');
+    const minimumEl = document.getElementById('minimum');
+    const statusEl = document.getElementById('status');
+    const messageEl = document.getElementById('message');
+    const towers = [...document.querySelectorAll('.tower')];
+    const stacks = towers.map(t => t.querySelector('.disk-stack'));
+    const colors = ['#ff6685','#ff9d55','#ffd166','#8bd17c','#4ecdc4','#5ca8ff','#9b8cff','#d78bff'];
+    let pegs = [[], [], []];
+    let moveCount = 0;
+    let running = false;
+    let cancelled = false;
+    let activeAnimation = null;
+let activeClone = null;
+
+    function minimumMoves(n) { return 2 ** n - 1; }
+    function setup() {
+      if (activeAnimation) activeAnimation.cancel();
+if (activeClone) activeClone.remove();
+
+activeAnimation = null;
+activeClone = null;
+cancelled = true;
+      running = false;
+      const n = Number(diskCount.value);
+      pegs = [Array.from({length:n}, (_,i) => n-i), [], []];
+      moveCount = 0;
+      movesEl.textContent = '0';
+      minimumEl.textContent = minimumMoves(n);
+      statusEl.textContent = 'Ready';
+      messageEl.textContent = 'Press “Solve Automatically” to watch the puzzle being solved.';
+      solveBtn.disabled = false;
+      diskCount.disabled = false;
+      speed.disabled = false;
+      towers.forEach(t => t.classList.remove('active'));
+      render();
+    }
+    function render() {
+      stacks.forEach((stack, pegIndex) => {
+        stack.innerHTML = '';
+        pegs[pegIndex].forEach(size => {
+          const disk = document.createElement('div');
+          disk.className = 'disk';
+          disk.style.width = `${35 + size * (52 / Number(diskCount.value))}%`;
+          disk.style.background = `linear-gradient(100deg, ${colors[size-1]}, ${colors[size-1]}bb)`;
+          disk.title = `Disk ${size}`;
+          stack.appendChild(disk);
+        });
+      });
+    }
+    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+    function generateMoves(n, from, to, spare, list) {
+      if (n === 0) return;
+      generateMoves(n-1, from, spare, to, list);
+      list.push([from, to]);
+      generateMoves(n-1, spare, to, from, list);
+    }
+    async function animateDiskMove(from, to) {
+    const sourceStack = stacks[from];
+    const disk = sourceStack.lastElementChild;
+
+    if (!disk) return false;
+
+    const start = disk.getBoundingClientRect();
+    const destination = stacks[to].getBoundingClientRect();
+
+    const diskHeight = disk.offsetHeight;
+    const targetTop = destination.bottom -
+        (pegs[to].length + 1) * diskHeight;
+
+    const targetLeft = destination.left +
+        (destination.width - start.width) / 2;
+
+    const liftTop = Math.max(
+        document.querySelector('.board').getBoundingClientRect().top + 5,
+        Math.min(start.top, targetTop) - 75
+    );
+
+    const clone = disk.cloneNode(true);
+    clone.classList.add('flying-disk');
+
+    clone.style.left = `${start.left}px`;
+    clone.style.top = `${start.top}px`;
+    clone.style.width = `${start.width}px`;
+    clone.style.height = `${start.height}px`;
+
+    document.body.appendChild(clone);
+    activeClone = clone;
+
+    disk.style.visibility = 'hidden';
+
+    const xMove = targetLeft - start.left;
+    const lift = liftTop - start.top;
+    const down = targetTop - liftTop;
+
+    activeAnimation = clone.animate([
+        {
+            transform: 'translate(0, 0)',
+            offset: 0
+        },
+        {
+            transform: `translate(0, ${lift}px)`,
+            offset: 0.30
+        },
+        {
+            transform: `translate(${xMove}px, ${lift}px)`,
+            offset: 0.70
+        },
+        {
+            transform: `translate(${xMove}px, ${lift + down}px)`,
+            offset: 1
+        }
+    ], {
+        duration: Number(speed.value),
+        easing: 'ease-in-out',
+        fill: 'forwards'
+    });
+
+    try {
+        await activeAnimation.finished;
+    } catch (error) {
+        // Animation was cancelled.
+    }
+
+    clone.remove();
+    activeClone = null;
+    activeAnimation = null;
+
+    if (cancelled) return false;
+
+    return true;
+}
+    async function solve() {
+    if (running) return;
+
+    running = true;
+    cancelled = false;
+
+    solveBtn.disabled = true;
+    diskCount.disabled = true;
+    speed.disabled = true;
+
+    statusEl.textContent = 'Solving';
+    messageEl.textContent = 'Watch the disks float between towers!';
+
+    const moves = [];
+
+    generateMoves(
+        Number(diskCount.value),
+        0, 2, 1, moves
+    );
+
+    for (const [from, to] of moves) {
+        if (cancelled) break;
+
+        const disk = pegs[from].at(-1);
+
+        const completed = await animateDiskMove(from, to);
+
+        if (!completed || cancelled) break;
+
+        pegs[from].pop();
+        pegs[to].push(disk);
+
+        moveCount++;
+        movesEl.textContent = moveCount;
+
+        towers.forEach((tower, i) => {
+            tower.classList.toggle('active', i === to);
+        });
+
+        render();
+    }
+
+    if (!cancelled) {
+        towers.forEach(t => t.classList.remove('active'));
+
+        statusEl.textContent = 'Completed!';
+        messageEl.textContent =
+            `🎉 Puzzle solved in ${moveCount} moves!`;
+    }
+
+    running = false;
+    solveBtn.disabled = false;
+    diskCount.disabled = false;
+    speed.disabled = false;
+}
+    solveBtn.addEventListener('click', solve);
+    resetBtn.addEventListener('click', setup);
+    diskCount.addEventListener('change', setup);
+    setup();
+  </script>
+</body>
+</html>
